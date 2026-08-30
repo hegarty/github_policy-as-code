@@ -1,0 +1,49 @@
+{
+  "owner": "hegarty",
+  "owner_type": "User",
+  "name": "compliant-repo",
+  "visibility": "public",
+  "archived": false,
+  "fork": false,
+  "is_empty": false,
+  "default_branch": "main",
+  "primary_language": "Go",
+  "collaborators": [
+    {"login": "hegarty", "permissions": {"admin": true}}
+  ],
+  "rulesets": [
+    {
+      "id": 1,
+      "name": "main-trunk-protection",
+      "target": "branch",
+      "enforcement": "active",
+      "ref_include": ["refs/heads/main"],
+      "rule_types": ["pull_request", "required_signatures", "non_fast_forward", "deletion", "required_linear_history", "required_status_checks"],
+      "bypass_actors": [
+        {"actor_type": "RepositoryRole", "actor_id": 5, "mode": "always"}
+      ]
+    }
+  ],
+  "default_workflow_permissions": "read",
+  "can_approve_pr_reviews": false,
+  "workflows": [
+    {
+      "path": ".github/workflows/trufflehog.yml",
+      "content": "on:\n  pull_request:\n    types: [opened, synchronize, reopened]\npermissions:\n  contents: read\njobs:\n  trufflehog:\n    steps:\n      - uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b\n        with:\n          extra_args: --results=verified,unknown\n"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "content": "jobs:\n  build:\n    steps:\n      - run: go build ./...\n      - run: go test ./...\n"
+    }
+  ],
+  "secret_scanning": "enabled",
+  "secret_scanning_push_protection": "enabled",
+  "secret_scanning_validity_checks": "enabled",
+  "dependabot_security_updates": "enabled",
+  "vulnerability_alerts_enabled": true,
+  "dependabot_config_present": true,
+  "code_scanning_configured": true,
+  "webhooks": 0,
+  "deploy_keys": 0,
+  "fetched_at": "2026-08-30T00:00:00Z"
+}

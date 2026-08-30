@@ -1,0 +1,28 @@
+{
+  "owner": "hegarty",
+  "owner_type": "User",
+  "name": "insecure-repo",
+  "visibility": "public",
+  "archived": false,
+  "fork": false,
+  "is_empty": false,
+  "default_branch": "main",
+  "primary_language": "Shell",
+  "collaborators": [
+    {"login": "hegarty", "permissions": {"admin": true}}
+  ],
+  "rulesets": [],
+  "default_workflow_permissions": "write",
+  "can_approve_pr_reviews": true,
+  "workflows": [],
+  "secret_scanning": "disabled",
+  "secret_scanning_push_protection": "disabled",
+  "secret_scanning_validity_checks": "disabled",
+  "dependabot_security_updates": "disabled",
+  "vulnerability_alerts_enabled": false,
+  "dependabot_config_present": false,
+  "code_scanning_configured": false,
+  "webhooks": 0,
+  "deploy_keys": 0,
+  "fetched_at": "2026-08-30T00:00:00Z"
+}

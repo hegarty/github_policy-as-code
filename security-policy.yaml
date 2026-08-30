@@ -1,0 +1,56 @@
+version: 1
+
+repositories:
+  visibility: public
+
+trunk:
+  branch: main
+  require_as_default: true
+
+default_branch:
+  require_pull_request: true
+  require_signed_commits: true
+  block_force_push: true
+  block_deletion: true
+  require_status_checks: true
+  required_status_check_contexts:
+    - trufflehog
+    - build
+  require_conversation_resolution: true
+  require_linear_history: true
+  # 0 approving reviews for solo-maintained repos (no self-approval trap),
+  # 1 for repos with 2+ collaborators. Selected automatically per-repo.
+  required_approving_review_count:
+    solo_maintainer: 0
+    multi_maintainer: 1
+  bypass_actors:
+    - role: repository_admin
+  # Stage new rulesets in evaluate (dry-run) mode; promote to active only
+  # after a verify cycle confirms no unexpected blocks.
+  enforcement: evaluate
+
+actions:
+  default_token_permissions: read
+  pin_actions_to_sha: true
+
+security:
+  github_secret_scanning: true
+  github_push_protection: true
+  dependabot: true
+  codeql:
+    enabled: auto        # auto-enable only for CodeQL-eligible languages
+    private_repos: false # never auto-enable paid Advanced Security features
+
+  trufflehog:
+    enabled: true
+    required_on_pull_requests: true
+    run_on_pr_updates: true
+    required_status_check: true
+    full_history_scan_on_onboarding: true
+    scan_mode: diff
+    fail_on_verified_secret: true
+    fail_on_unverified_secret: true
+
+deployment:
+  allow_from_trunk_only: true
+  trunk_branch: main

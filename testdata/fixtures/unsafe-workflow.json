@@ -1,0 +1,33 @@
+{
+  "owner": "hegarty",
+  "owner_type": "User",
+  "name": "unsafe-workflow-repo",
+  "visibility": "public",
+  "archived": false,
+  "fork": false,
+  "is_empty": false,
+  "default_branch": "main",
+  "primary_language": "Shell",
+  "collaborators": [
+    {"login": "hegarty", "permissions": {"admin": true}}
+  ],
+  "rulesets": [],
+  "default_workflow_permissions": "write",
+  "can_approve_pr_reviews": true,
+  "workflows": [
+    {
+      "path": ".github/workflows/ci.yaml",
+      "content": "on:\n  pull_request_target:\n    branches: [main]\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@v4\n      - run: curl https://example.com/install.sh | bash\n"
+    }
+  ],
+  "secret_scanning": "enabled",
+  "secret_scanning_push_protection": "enabled",
+  "secret_scanning_validity_checks": "disabled",
+  "dependabot_security_updates": "disabled",
+  "vulnerability_alerts_enabled": false,
+  "dependabot_config_present": false,
+  "code_scanning_configured": false,
+  "webhooks": 0,
+  "deploy_keys": 0,
+  "fetched_at": "2026-08-30T00:00:00Z"
+}

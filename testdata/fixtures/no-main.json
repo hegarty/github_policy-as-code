@@ -1,0 +1,28 @@
+{
+  "owner": "hegarty",
+  "owner_type": "User",
+  "name": "empty-repo",
+  "visibility": "public",
+  "archived": false,
+  "fork": false,
+  "is_empty": true,
+  "default_branch": "",
+  "primary_language": "",
+  "collaborators": [
+    {"login": "hegarty", "permissions": {"admin": true}}
+  ],
+  "rulesets": [],
+  "default_workflow_permissions": "read",
+  "can_approve_pr_reviews": false,
+  "workflows": [],
+  "secret_scanning": "enabled",
+  "secret_scanning_push_protection": "enabled",
+  "secret_scanning_validity_checks": "disabled",
+  "dependabot_security_updates": "disabled",
+  "vulnerability_alerts_enabled": false,
+  "dependabot_config_present": false,
+  "code_scanning_configured": false,
+  "webhooks": 0,
+  "deploy_keys": 0,
+  "fetched_at": "2026-08-30T00:00:00Z"
+}
