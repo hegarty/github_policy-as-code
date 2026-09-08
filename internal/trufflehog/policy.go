@@ -31,12 +31,23 @@ var shaRefPattern = regexp.MustCompile(`trufflesecurity/trufflehog@([0-9a-f]{40}
 var mutableRefPattern = regexp.MustCompile(`trufflesecurity/trufflehog@(main|master|v[0-9]+(\.[0-9]+)*)\b`)
 
 // Inspect examines the repo's workflow files and returns the observed
-// TruffleHog configuration state. Returns Installed=false if no TruffleHog
+// TruffleHog configuration state for the PR-gating scan specifically (the
+// one policy requires as a required status check) — not the separate
+// one-time full-history onboarding scan, which also references
+// trufflesecurity/trufflehog but is workflow_dispatch-only and must not be
+// mistaken for the per-PR check. Returns Installed=false if no matching
 // workflow is present.
 func Inspect(workflows []ghapi.WorkflowFile) State {
 	var s State
 	for _, wf := range workflows {
-		if !strings.Contains(wf.Content, "trufflesecurity/trufflehog") {
+		if wf.Path == WorkflowPath {
+			// Exact match on the canonical path always wins.
+		} else if strings.Contains(wf.Content, "trufflesecurity/trufflehog") && strings.Contains(wf.Content, "pull_request") {
+			// Fallback for repos that installed TruffleHog under a
+			// different filename: only treat it as the PR-gating scan if
+			// it actually triggers on pull_request, so the workflow_dispatch-only
+			// full-history scan is never mistaken for it.
+		} else {
 			continue
 		}
 		s.Installed = true
