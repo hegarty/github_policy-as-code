@@ -205,7 +205,7 @@ func cmdPlan(ctx context.Context, args []string) (int, error) {
 		findings, changes := policy.Evaluate(state, pol)
 		injectPins(changes, pins, state.DefaultBranch, *goVersion)
 
-		hash, err := plan.HashState(state)
+		hash, err := plan.HashState(state.ForHashing())
 		if err != nil {
 			return 4, err
 		}
@@ -266,7 +266,7 @@ func cmdApply(ctx context.Context, args []string) (int, error) {
 		if err != nil {
 			return 4, fmt.Errorf("re-checking %s/%s before apply: %w", rp.Owner, rp.Repo, err)
 		}
-		hash, err := plan.HashState(state)
+		hash, err := plan.HashState(state.ForHashing())
 		if err != nil {
 			return 4, err
 		}

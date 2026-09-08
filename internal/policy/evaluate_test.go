@@ -253,6 +253,32 @@ func TestEvaluate_BypassActorDrift(t *testing.T) {
 	}
 }
 
+func TestEvaluate_CodeQLLanguageIDIsAPICompatible(t *testing.T) {
+	// Regression test: GitHub's code-scanning default-setup API rejects the
+	// Linguist-style "Go" (confirmed via a live 422) and wants lowercase
+	// "go" instead. Evaluate must translate, not pass RepoState.PrimaryLanguage
+	// straight through.
+	state := loadFixture(t, "solo-maintainer") // public, Go, code_scanning_configured: false
+	pol := config.Default()
+
+	_, changes := policy.Evaluate(state, pol)
+
+	found := false
+	for _, c := range changes {
+		if c.Kind != policy.KindEnableCodeQL {
+			continue
+		}
+		found = true
+		lang, _ := c.Params["language"].(string)
+		if lang != "go" {
+			t.Errorf("expected CodeQL language param %q, got %q", "go", lang)
+		}
+	}
+	if !found {
+		t.Fatal("expected a CodeQL enable change for this public, Go, eligible fixture")
+	}
+}
+
 func TestEvaluate_Idempotent(t *testing.T) {
 	// Running Evaluate twice against the same state must produce the same
 	// findings and changes — the engine is pure and must not carry any

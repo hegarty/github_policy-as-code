@@ -26,7 +26,12 @@ default_branch:
   bypass_actors:
     - role: repository_admin
   # Stage new rulesets in evaluate (dry-run) mode; promote to active only
-  # after a verify cycle confirms no unexpected blocks.
+  # after a verify cycle confirms no unexpected blocks. NOTE: "evaluate"
+  # enforcement requires GitHub Enterprise — confirmed against the live API
+  # (HTTP 422: "Enforcement evaluate option is not supported on this plan").
+  # On Free/Pro/Team accounts, apply will fail on this value; override to
+  # "active" for those repos, and rely on the plan/apply diff review plus
+  # the retained repository_admin bypass as the safety net instead.
   enforcement: evaluate
 
 actions:
