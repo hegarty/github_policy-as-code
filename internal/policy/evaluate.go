@@ -63,6 +63,14 @@ func Evaluate(state *ghapi.RepoState, pol *config.Policy) ([]Finding, []Change) 
 		desiredReviewCount = pol.DefaultBranch.RequiredApprovingReviewCount.SoloMaintainer
 	}
 
+	// requiredStatusChecks is computed before the ruleset itself: a "build"
+	// context must never be required unless a CI workflow producing it
+	// either already exists or is being installed in this same pass (Go
+	// repos only, today — see the CI section below). Requiring a check
+	// that will never report would permanently block every future PR on
+	// any non-Go repo — this was caught before rollout, not after.
+	requiredStatusChecks := computeRequiredStatusChecks(state, pol)
+
 	// --- Trunk ruleset ---
 	var existing *ghapi.Ruleset
 	for i := range state.Rulesets {
@@ -80,7 +88,7 @@ func Evaluate(state *ghapi.RepoState, pol *config.Policy) ([]Finding, []Change) 
 			Repo: repoID, Control: "ruleset", Severity: SeverityHigh,
 			Message: fmt.Sprintf("no %q ruleset protecting %s — PRs, signed commits, force-push/deletion, and status checks are not enforced", rulesetName, state.DefaultBranch),
 		})
-		changes = append(changes, rulesetChange(repoID, state.DefaultBranch, "(none)", enforcement, desiredReviewCount, pol, RiskSensitive))
+		changes = append(changes, rulesetChange(repoID, state.DefaultBranch, "(none)", enforcement, desiredReviewCount, requiredStatusChecks, pol, RiskSensitive))
 	} else if existing.Enforcement != enforcement {
 		sev := SeverityMedium
 		risk := RiskSensitive
@@ -92,7 +100,7 @@ func Evaluate(state *ghapi.RepoState, pol *config.Policy) ([]Finding, []Change) 
 			Repo: repoID, Control: "ruleset", Severity: sev,
 			Message: fmt.Sprintf("ruleset %q enforcement is %q, policy wants %q", rulesetName, existing.Enforcement, enforcement),
 		})
-		changes = append(changes, rulesetChange(repoID, state.DefaultBranch, existing.Enforcement, enforcement, desiredReviewCount, pol, risk))
+		changes = append(changes, rulesetChange(repoID, state.DefaultBranch, existing.Enforcement, enforcement, desiredReviewCount, requiredStatusChecks, pol, risk))
 	}
 	if existing != nil {
 		findings = append(findings, bypassActorFindings(repoID, existing.BypassActors, pol.DefaultBranch.BypassActors)...)
@@ -158,23 +166,14 @@ func Evaluate(state *ghapi.RepoState, pol *config.Policy) ([]Finding, []Change) 
 	}
 
 	// --- CI workflow (Go repos only, this version) ---
-	if state.PrimaryLanguage == "Go" {
-		hasCI := false
-		for _, wf := range state.Workflows {
-			if containsGoTest(wf.Content) {
-				hasCI = true
-				break
-			}
-		}
-		if !hasCI {
-			changes = append(changes, Change{
-				Repo: repoID, Control: "ci",
-				Current: "absent", Desired: "go build/vet/test on PR + push",
-				Action: "create .github/workflows/ci.yml", Risk: RiskSafe,
-				Impact: "adds a required CI check once the ruleset references it",
-				Kind:   KindInstallCIWorkflow,
-			})
-		}
+	if state.PrimaryLanguage == "Go" && !hasGoCIWorkflow(state) {
+		changes = append(changes, Change{
+			Repo: repoID, Control: "ci",
+			Current: "absent", Desired: "go build/vet/test on PR + push",
+			Action: "create .github/workflows/ci.yml", Risk: RiskSafe,
+			Impact: "adds a required CI check once the ruleset references it",
+			Kind:   KindInstallCIWorkflow,
+		})
 	}
 
 	// --- Dependabot ---
@@ -277,7 +276,7 @@ func bypassActorFindings(repoID string, live []ghapi.BypassActor, approved []con
 	return findings
 }
 
-func rulesetChange(repoID, branch, current, desiredEnforcement string, reviewCount int, pol *config.Policy, risk Risk) Change {
+func rulesetChange(repoID, branch, current, desiredEnforcement string, reviewCount int, requiredStatusChecks []string, pol *config.Policy, risk Risk) Change {
 	return Change{
 		Repo: repoID, Control: "ruleset",
 		Current: current, Desired: desiredEnforcement,
@@ -295,10 +294,49 @@ func rulesetChange(repoID, branch, current, desiredEnforcement string, reviewCou
 			"block_deletion":                  pol.DefaultBranch.BlockDeletion,
 			"require_linear_history":          pol.DefaultBranch.RequireLinearHistory,
 			"require_conversation_resolution": pol.DefaultBranch.RequireConversationResolution,
-			"required_status_checks":          pol.DefaultBranch.RequiredStatusCheckContexts,
+			"required_status_checks":          requiredStatusChecks,
 			"bypass_actors":                   pol.DefaultBranch.BypassActors,
 		},
 	}
+}
+
+// computeRequiredStatusChecks filters the policy's configured status-check
+// contexts down to ones that will actually report for this specific repo.
+// "trufflehog" and "build" are the two contexts this engine manages itself
+// (installing the workflow that produces them); any other context name in
+// policy is passed through unfiltered, on the assumption the operator
+// configured it deliberately for a check some other system already
+// produces. Requiring a context that will never report would permanently
+// block every future PR — see the ruleset section's comment for why this
+// is computed up front rather than left to the raw policy list.
+func computeRequiredStatusChecks(state *ghapi.RepoState, pol *config.Policy) []string {
+	var out []string
+	for _, ctxName := range pol.DefaultBranch.RequiredStatusCheckContexts {
+		switch ctxName {
+		case "trufflehog":
+			if pol.Security.TruffleHog.Enabled {
+				out = append(out, ctxName)
+			}
+		case "build":
+			if state.PrimaryLanguage == "Go" {
+				out = append(out, ctxName)
+			}
+		default:
+			out = append(out, ctxName)
+		}
+	}
+	return out
+}
+
+// hasGoCIWorkflow reports whether an existing workflow already runs `go
+// build`/`go test` — used to avoid proposing a duplicate CI workflow.
+func hasGoCIWorkflow(state *ghapi.RepoState) bool {
+	for _, wf := range state.Workflows {
+		if containsGoTest(wf.Content) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsGoTest(content string) bool {

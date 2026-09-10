@@ -12,3 +12,4 @@ Numbered, append-only. Each record captures a decision, the context that drove i
 | [0006](0006-solo-vs-multi-maintainer-reviews.md) | Required-review count adapts to collaborator count |
 | [0007](0007-enforcement-mode-plan-gap.md) | Ruleset `evaluate` enforcement requires GitHub Enterprise — active-only fallback |
 | [0008](0008-conservative-paid-feature-defaults.md) | Never auto-enable paid security features on private repos |
+| [0009](0009-required-checks-must-be-reachable.md) | A required status check must only be required where it will actually run |

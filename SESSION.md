@@ -29,7 +29,7 @@ DISCOVER (read-only) → ASSESS → ASK ALL QUESTIONS TOGETHER → GENERATE FINA
 - **This repo (`github_policy-as-code`) is the pilot.** `main` is protected by an active ruleset: PR required, GitHub-verified signed commits required, force-push and deletion blocked, linear history required, conversation resolution required, required status checks (`build`, `trufflehog`), 0 required approving reviews (solo maintainer — see ADR-0006), bypass limited to the repository-admin role.
 - TruffleHog (diff-mode + a separate one-time full-history onboarding workflow), CI (`go build`/`vet`/`test`), CodeQL default setup (language: go), Dependabot (`gomod` + `github-actions`, weekly), vulnerability alerts, and automated security fixes are all live and passing on this repo.
 - The Go CLI (`audit`, `plan`, `apply`, `verify`, `repo create`) is implemented and has been exercised end-to-end against live GitHub state, not just against test fixtures.
-- All other repos under the `hegarty` account have been **audited only** (read-only) — nothing has been applied to them. Their specific findings are intentionally not enumerated here or in any file checked into this public repo; see the project owner directly for that status if you're a future Claude session that needs it, or regenerate it with `audit`/`plan`.
+- Rollout to the account's other public repos is **in progress** (see Roadmap item 1). Their specific findings are intentionally not enumerated here or in any file checked into this public repo; see the project owner directly for that status if you're a future Claude session that needs it, or regenerate it with `audit`/`plan`. Private repos remain untouched — not yet in scope.
 - Phase 2 (AWS Lambda + EventBridge scheduled audit) has not been started — deliberately deferred until the CLI is proven out further.
 
 ## Known gaps (real, not hypothetical — tracked, not yet fixed)
@@ -40,6 +40,8 @@ DISCOVER (read-only) → ASSESS → ASK ALL QUESTIONS TOGETHER → GENERATE FINA
 4. **Ruleset drift detection is shallow.** `policy.Evaluate` checks a named ruleset's existence and top-level `enforcement` field, and separately checks bypass actors, but doesn't deeply reconcile every individual rule parameter (e.g. exact required-status-check list contents) against policy on every audit pass.
 5. **No pagination beyond one page (100) when listing an owner's repos.** Not yet hit in practice (largest account audited so far: 37 repos), but will silently under-count on a larger owner.
 
+**Recently resolved:** planning the public-repo rollout surfaced a real pre-execution bug — the ruleset unconditionally required a `"build"` status check even on repos where no CI workflow would ever produce one (only Go repos get a CI workflow today), which would have permanently blocked every future PR on every non-Go repo. Caught by reading a generated plan critically before applying, not by a unit test. Fixed in `internal/policy.computeRequiredStatusChecks` — see [ADR-0009](docs/adr/0009-required-checks-must-be-reachable.md).
+
 ## Credential / environment notes
 
 - Local `gh` CLI session (account `hegarty`) holds these OAuth scopes as of the last session: `admin:gpg_key`, `admin:public_key`, `admin:ssh_signing_key`, `gist`, `read:org`, `repo`, `workflow`. No `admin:org` (no org currently in scope), no `delete_repo`.
@@ -49,7 +51,7 @@ DISCOVER (read-only) → ASSESS → ASK ALL QUESTIONS TOGETHER → GENERATE FINA
 
 ## Roadmap / next steps
 
-1. Review and decide on rolling the same baseline out to the rest of the account's public repos (same `plan` → review → `apply` flow already proven on this repo).
+1. **In progress:** rolling the same baseline out to the rest of the account's public repos (same `plan` → review → `apply` flow already proven on this repo).
 2. Decide whether/how to bring private repos into scope — several are infrastructure-heavy (Terraform/AWS-adjacent) and were flagged as higher priority in the original threat model, but CodeQL/secret-scanning are paid features on private repos, so this needs an explicit policy decision first (see ADR-0008).
 3. Close the known gaps above, roughly in order of security impact: (1) plan-tier capability auto-detection, (2) post-condition verification on mutations, (3) ruleset deep-diff, (4) weakened-TruffleHog remediation, (5) pagination.
 4. Phase 2: AWS Lambda + EventBridge scheduled audit-only execution, using a narrowly-scoped GitHub App rather than a long-lived personal token.
