@@ -13,3 +13,4 @@ Numbered, append-only. Each record captures a decision, the context that drove i
 | [0007](0007-enforcement-mode-plan-gap.md) | Ruleset `evaluate` enforcement requires GitHub Enterprise — active-only fallback |
 | [0008](0008-conservative-paid-feature-defaults.md) | Never auto-enable paid security features on private repos |
 | [0009](0009-required-checks-must-be-reachable.md) | A required status check must only be required where it will actually run |
+| [0010](0010-ci-workflow-reads-go-version-from-repo.md) | Generated CI workflow reads its Go version from the target repo, not a hardcoded default |

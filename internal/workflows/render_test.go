@@ -43,17 +43,16 @@ func TestRenderTruffleHog_FailOnVerifiedOnly(t *testing.T) {
 	}
 }
 
-func TestRenderCI_PinsSHAsAndGoVersion(t *testing.T) {
+func TestRenderCI_PinsSHAsAndReadsGoVersionFromRepo(t *testing.T) {
 	out := workflows.RenderCI(workflows.CIParams{
 		CheckoutSHA:   "1111111111111111111111111111111111111111",
 		SetupGoSHA:    "3333333333333333333333333333333333333333",
-		GoVersion:     "1.22",
 		DefaultBranch: "main",
 	})
 	for _, want := range []string{
 		"actions/checkout@1111111111111111111111111111111111111111",
 		"actions/setup-go@3333333333333333333333333333333333333333",
-		`go-version: "1.22"`,
+		"go-version-file: go.mod",
 		"go build ./...",
 		"go vet ./...",
 		"go test ./...",

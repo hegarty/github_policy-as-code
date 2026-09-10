@@ -174,7 +174,6 @@ func cmdPlan(ctx context.Context, args []string) (int, error) {
 	repoFlag := fs.String("repo", "", "single OWNER/NAME repo to plan for instead of --owner")
 	policyPath := fs.String("policy", "", "path to security-policy.yaml (defaults to built-in baseline policy)")
 	out := fs.String("out", "plan.json", "output path for the plan artifact")
-	goVersion := fs.String("go-version", "1.22", "Go version to pin in generated CI workflows")
 	fs.Parse(args)
 
 	c, err := newClient()
@@ -203,7 +202,7 @@ func cmdPlan(ctx context.Context, args []string) (int, error) {
 			continue
 		}
 		findings, changes := policy.Evaluate(state, pol)
-		injectPins(changes, pins, state.DefaultBranch, *goVersion)
+		injectPins(changes, pins, state.DefaultBranch)
 
 		hash, err := plan.HashState(state.ForHashing())
 		if err != nil {
