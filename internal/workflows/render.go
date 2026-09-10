@@ -87,11 +87,15 @@ jobs:
 `, p.CheckoutSHA, p.TruffleHogSHA)
 }
 
-// CIParams configures the rendered Go build/test workflow.
+// CIParams configures the rendered Go build/test workflow. Go version is
+// deliberately not a param here: the workflow reads it from the target
+// repo's own go.mod (go-version-file) so it can never drift out of sync
+// with what that repo actually requires — a hardcoded version here was a
+// real bug (see ADR-0010) that broke every repo whose go.mod required a
+// newer Go than whatever was hardcoded.
 type CIParams struct {
 	CheckoutSHA   string
 	SetupGoSHA    string
-	GoVersion     string
 	DefaultBranch string
 }
 
@@ -118,7 +122,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@%s
         with:
-          go-version: %q
+          go-version-file: go.mod
 
       - name: Build
         run: go build ./...
@@ -128,5 +132,5 @@ jobs:
 
       - name: Test
         run: go test ./...
-`, p.DefaultBranch, p.DefaultBranch, p.CheckoutSHA, p.SetupGoSHA, p.GoVersion)
+`, p.DefaultBranch, p.DefaultBranch, p.CheckoutSHA, p.SetupGoSHA)
 }

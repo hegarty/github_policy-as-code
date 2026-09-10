@@ -209,7 +209,6 @@ func applyTruffleHogOnboarding(ctx context.Context, c ghapi.Client, owner, repo 
 func applyCIWorkflow(ctx context.Context, c ghapi.Client, owner, repo string, params map[string]any) error {
 	checkoutSHA, _ := params["checkout_sha"].(string)
 	setupGoSHA, _ := params["setup_go_sha"].(string)
-	goVersion, _ := params["go_version"].(string)
 	branch, _ := params["branch"].(string)
 	if branch == "" {
 		branch = "main"
@@ -217,7 +216,6 @@ func applyCIWorkflow(ctx context.Context, c ghapi.Client, owner, repo string, pa
 	content := workflows.RenderCI(workflows.CIParams{
 		CheckoutSHA:   checkoutSHA,
 		SetupGoSHA:    setupGoSHA,
-		GoVersion:     goVersion,
 		DefaultBranch: branch,
 	})
 	return c.CreateOrUpdateFile(ctx, owner, repo, ciWorkflowPath, branch, "ci: add Go build/vet/test workflow", []byte(content))

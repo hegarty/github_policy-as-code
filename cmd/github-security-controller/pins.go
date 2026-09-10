@@ -16,7 +16,7 @@ func workflowPins(ctx context.Context, c ghapi.Client) (workflows.Pins, error) {
 // per-repo values not known to the pure policy package) into the Params of
 // any Change that installs a workflow file. Kept as a post-processing step
 // so internal/policy stays free of network calls.
-func injectPins(changes []policy.Change, pins workflows.Pins, defaultBranch, goVersion string) {
+func injectPins(changes []policy.Change, pins workflows.Pins, defaultBranch string) {
 	branch := defaultBranch
 	if branch == "" {
 		branch = "main"
@@ -33,7 +33,6 @@ func injectPins(changes []policy.Change, pins workflows.Pins, defaultBranch, goV
 		case policy.KindInstallCIWorkflow:
 			changes[i].Params["checkout_sha"] = pins.CheckoutSHA
 			changes[i].Params["setup_go_sha"] = pins.SetupGoSHA
-			changes[i].Params["go_version"] = goVersion
 			changes[i].Params["branch"] = branch
 		case policy.KindInstallDependabotConfig:
 			changes[i].Params["branch"] = branch
