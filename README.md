@@ -4,7 +4,65 @@ A policy-as-code GitHub security controller. It audits repositories against a de
 
 It is **owner-agnostic**: it works against a personal account, an organization, a single repository, or every non-archived repository an owner has, without hardcoding any specific account. See [`SESSION.md`](SESSION.md) for the project's current status and roadmap, and [`docs/adr/`](docs/adr/README.md) for why it's built the way it is.
 
-## How to operate it
+## Getting started
+
+**1. Install Go 1.22 or newer.** The exact version this project is pinned to is in [`.tool-versions`](.tool-versions) (`golang 1.22.7`). If you use [asdf](https://asdf-vm.com), `asdf install` in the repo root picks it up automatically; otherwise install any Go ≥ 1.22 from [go.dev/dl](https://go.dev/dl/) and confirm with `go version`.
+
+**2. Clone and build the binary.**
+```
+git clone git@github.com:hegarty/github_policy-as-code.git
+cd github_policy-as-code
+go build -o github-security-controller ./cmd/github-security-controller
+```
+This produces a single `github-security-controller` executable in the repo root (gitignored — rebuild after every `git pull` that touches Go source).
+
+**3. Authenticate to GitHub.** The tool needs a token; it checks `$GITHUB_TOKEN` first, and if that's unset, falls back automatically to whatever the `gh` CLI is currently logged in as (`gh auth token`). Pick one:
+
+  - **Recommended — use the `gh` CLI, no token to manage yourself:**
+    ```
+    gh auth login
+    gh auth refresh -s repo,workflow,admin:public_key,admin:gpg_key,admin:ssh_signing_key
+    ```
+    Nothing further to set — the tool picks this up automatically.
+  - **Or set a Personal Access Token explicitly:**
+    ```
+    export GITHUB_TOKEN=ghp_your_token_here
+    ```
+    A fine-grained or classic PAT both work. Either way it needs enough scope for what you're about to run — see the table below.
+
+  | Scope | Needed for |
+  |---|---|
+  | `repo` | everything: reading repo state, creating rulesets, enabling security features |
+  | `workflow` | `apply` creating/updating files under `.github/workflows/` (TruffleHog, CI) |
+  | `admin:public_key`, `admin:gpg_key`, `admin:ssh_signing_key` | only if you also want to audit/register signing keys yourself (see step 4) — `apply` does not do this automatically today |
+
+  `audit` and `plan` are read-only and work with just `repo`; add `workflow` before your first `apply` on a repo that needs a new TruffleHog or CI workflow installed.
+
+**4. (Recommended, manual) Set up commit signing.** The controller can *require* signed commits on a repo, but it does not generate or register a signing key for you — that's a one-time step on your own workstation:
+```
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_signing -N ""
+gh api -X POST user/ssh_signing_keys -f title="my signing key" -f key="$(cat ~/.ssh/id_ed25519_signing.pub)"
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519_signing.pub
+git config --global commit.gpgsign true
+```
+Use a *dedicated* key here, separate from any key you use for SSH authentication — see [ADR-0003](docs/adr/0003-dedicated-ssh-signing-key.md) for why that separation matters. Note: only commits made *after* the key is registered will verify; GitHub does not retroactively verify older ones.
+
+**5. Run your first command — read-only, safe to try immediately:**
+```
+./github-security-controller audit --repo YOUR_OWNER/YOUR_REPO
+```
+This prints findings only. Nothing on GitHub changes. Try `--owner YOUR_OWNER` instead of `--repo` to audit every non-archived, non-fork repo you own at once.
+
+**6. When you're ready to change something, plan first, then apply:**
+```
+./github-security-controller plan --repo YOUR_OWNER/YOUR_REPO --out plan.json
+cat plan.json   # or open it in an editor — review every proposed change
+./github-security-controller apply --plan plan.json
+./github-security-controller verify --repo YOUR_OWNER/YOUR_REPO
+```
+
+## Command reference
 
 ```
 github-security-controller audit --owner OWNER [--policy FILE] [--json]
@@ -15,15 +73,13 @@ github-security-controller verify --owner OWNER
 github-security-controller repo create --owner OWNER --name NAME --visibility public
 ```
 
-The normal flow is **audit → plan → review the diff yourself → apply → verify**:
+The full flow, in order: **audit → plan → review the diff yourself → apply → verify**.
 
 1. `audit` reads live GitHub state and reports findings. Read-only, always.
 2. `plan` does the same read, plus computes the exact `Change`s needed to close the gap, and writes a fingerprinted `plan.json`. Still read-only — nothing on GitHub changes yet.
 3. You read `plan.json` (or its table output) and decide whether to proceed.
 4. `apply --plan plan.json` re-checks live state first — if anything drifted since `plan` ran, it refuses with a staleness error rather than applying against stale assumptions (`--force` overrides this, deliberately not wired into any automated path).
 5. `verify` re-audits after applying, to confirm the changes actually took effect the way you expected.
-
-Authentication: set `GITHUB_TOKEN`, or leave it unset to fall back to the currently authenticated `gh` CLI session (`gh auth token`). No token is ever written to disk by this tool or logged.
 
 ## What it enforces
 
