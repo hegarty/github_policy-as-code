@@ -279,6 +279,79 @@ func TestEvaluate_CodeQLLanguageIDIsAPICompatible(t *testing.T) {
 	}
 }
 
+func TestEvaluate_NonGoRepoDoesNotRequireBuildCheck(t *testing.T) {
+	// Regression test for a real pre-rollout bug: the ruleset unconditionally
+	// required a "build" status check even on repos where no CI workflow
+	// would ever be installed (this engine only installs one for Go repos
+	// today). That would have permanently blocked every future PR on any
+	// non-Go repo, waiting on a check that never reports.
+	state := loadFixture(t, "insecure") // primary_language: Shell, no ruleset yet
+	if state.PrimaryLanguage == "Go" {
+		t.Fatal("fixture setup error: this test needs a non-Go fixture")
+	}
+	pol := config.Default()
+
+	_, changes := policy.Evaluate(state, pol)
+
+	found := false
+	for _, c := range changes {
+		if c.Kind != policy.KindCreateOrUpdateRuleset {
+			continue
+		}
+		found = true
+		checks, _ := c.Params["required_status_checks"].([]string)
+		for _, ctx := range checks {
+			if ctx == "build" {
+				t.Errorf("non-Go repo must not require a %q status check — no CI workflow will ever produce it, got required checks: %v", "build", checks)
+			}
+		}
+		hasTrufflehog := false
+		for _, ctx := range checks {
+			if ctx == "trufflehog" {
+				hasTrufflehog = true
+			}
+		}
+		if !hasTrufflehog {
+			t.Errorf("expected \"trufflehog\" to still be required (TruffleHog is being installed this same pass), got: %v", checks)
+		}
+	}
+	if !found {
+		t.Fatal("expected a ruleset change")
+	}
+}
+
+func TestEvaluate_GoRepoDoesRequireBuildCheck(t *testing.T) {
+	state := loadFixture(t, "solo-maintainer") // primary_language: Go
+	if state.PrimaryLanguage != "Go" {
+		t.Fatal("fixture setup error: this test needs a Go fixture")
+	}
+	state.Rulesets = nil // force a ruleset-create change rather than a no-op
+	pol := config.Default()
+
+	_, changes := policy.Evaluate(state, pol)
+
+	found := false
+	for _, c := range changes {
+		if c.Kind != policy.KindCreateOrUpdateRuleset {
+			continue
+		}
+		found = true
+		checks, _ := c.Params["required_status_checks"].([]string)
+		hasBuild := false
+		for _, ctx := range checks {
+			if ctx == "build" {
+				hasBuild = true
+			}
+		}
+		if !hasBuild {
+			t.Errorf("Go repo should require a %q status check since a CI workflow producing it is being installed, got: %v", "build", checks)
+		}
+	}
+	if !found {
+		t.Fatal("expected a ruleset change")
+	}
+}
+
 func TestEvaluate_Idempotent(t *testing.T) {
 	// Running Evaluate twice against the same state must produce the same
 	// findings and changes — the engine is pure and must not carry any
