@@ -469,6 +469,15 @@ func (c *restClient) EnableAutomatedSecurityFixes(ctx context.Context, owner, re
 	return err
 }
 
+// SetSecretScanningValidityChecks was observed against a live Free-plan
+// personal account to return HTTP 200 without actually changing the
+// setting — GitHub accepts the PATCH but silently no-ops it, unlike the
+// ruleset evaluate-mode case which correctly returns a 422. This looks like
+// a plan-tier gate (validity checks build on secret scanning and may
+// require GitHub Advanced Security / the paid Secret Protection product)
+// that GitHub doesn't surface as an explicit error for this field. Calling
+// code should not assume success implies the setting took effect; verify
+// via GetRepo if this matters for a given call site.
 func (c *restClient) SetSecretScanningValidityChecks(ctx context.Context, owner, repo string, enabled bool) error {
 	status := "disabled"
 	if enabled {
