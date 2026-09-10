@@ -55,6 +55,16 @@ func (r *RepoState) SoloMaintainer() bool {
 	return len(r.Collaborators) <= 1
 }
 
+// ForHashing returns a copy of the state with FetchedAt zeroed. Plan
+// fingerprints and staleness checks must be based on the repo's actual
+// configuration, not on when it happened to be collected — including
+// FetchedAt would make every fresh audit look "stale" relative to the plan,
+// even with zero real drift.
+func (r RepoState) ForHashing() RepoState {
+	r.FetchedAt = time.Time{}
+	return r
+}
+
 type Ruleset struct {
 	ID           int64         `json:"id"`
 	Name         string        `json:"name"`

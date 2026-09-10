@@ -21,13 +21,16 @@ var roleActorIDs = map[string]int64{
 	"repository_admin": 5,
 }
 
-// codeQLLanguages is the set of languages CodeQL's default setup supports.
+// codeQLLanguageIDs maps GitHub's repo-metadata language names (Linguist
+// style, as returned in RepoState.PrimaryLanguage) to the identifiers the
+// code-scanning default-setup API actually accepts — confirmed against a
+// live 422 response ("Go" was rejected; the API wants lowercase "go").
 // Not exhaustive of every CodeQL build mode, but covers the common cases
 // the controller needs to decide "auto" eligibility.
-var codeQLLanguages = map[string]bool{
-	"Go": true, "JavaScript": true, "TypeScript": true, "Python": true,
-	"Ruby": true, "Java": true, "Kotlin": true, "C#": true,
-	"C++": true, "C": true, "Swift": true,
+var codeQLLanguageIDs = map[string]string{
+	"Go": "go", "JavaScript": "javascript-typescript", "TypeScript": "javascript-typescript",
+	"Python": "python", "Ruby": "ruby", "Java": "java-kotlin", "Kotlin": "java-kotlin",
+	"C#": "csharp", "C++": "c-cpp", "C": "c-cpp", "Swift": "swift",
 }
 
 // Evaluate compares a repo's live state against policy and returns findings
@@ -229,14 +232,14 @@ func Evaluate(state *ghapi.RepoState, pol *config.Policy) ([]Finding, []Change) 
 
 	// --- CodeQL ---
 	if pol.Security.CodeQL.Enabled != "never" && !state.CodeScanningConfigured {
-		eligible := codeQLLanguages[state.PrimaryLanguage]
+		codeqlLang, eligible := codeQLLanguageIDs[state.PrimaryLanguage]
 		allowedByVisibility := state.Visibility == "public" || pol.Security.CodeQL.PrivateRepos
 		if eligible && allowedByVisibility {
 			changes = append(changes, Change{
-				Repo: repoID, Control: "codeql", Current: "absent", Desired: "default setup, language=" + state.PrimaryLanguage,
+				Repo: repoID, Control: "codeql", Current: "absent", Desired: "default setup, language=" + codeqlLang,
 				Action: "enable CodeQL default setup", Risk: RiskSafe,
 				Impact: "free on public repos; adds a required check once wired into the ruleset",
-				Kind:   KindEnableCodeQL, Params: map[string]any{"language": state.PrimaryLanguage},
+				Kind:   KindEnableCodeQL, Params: map[string]any{"language": codeqlLang},
 			})
 		} else if eligible && !allowedByVisibility {
 			findings = append(findings, Finding{
